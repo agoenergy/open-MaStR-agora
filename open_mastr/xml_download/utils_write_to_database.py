@@ -1,19 +1,22 @@
 from shutil import Error
 from zipfile import ZipFile
+
 import lxml
 import numpy as np
 import pandas as pd
-import sqlite3
 import sqlalchemy
-from sqlalchemy import select
+from sqlalchemy import select, exc
 from sqlalchemy.sql import text
 
-from open_mastr.utils.helpers import data_to_include_tables
-from open_mastr.utils.orm import tablename_mapping
-from open_mastr.xml_download.utils_cleansing_bulk import cleanse_bulk_data
 from open_mastr.utils.config import setup_logger
+from open_mastr.utils.helpers import data_to_include_tables
+from open_mastr.utils.orm_temp import tablename_mapping
+from open_mastr.xml_download.utils_cleansing_bulk import cleanse_bulk_data
+from io import StringIO
+from open_mastr.xml_download.exception_handler import db_exception_handler
 
 
+@db_exception_handler
 def write_mastr_xml_to_database(
     engine: sqlalchemy.engine.Engine,
     zipped_xml_file_path: str,
@@ -62,6 +65,7 @@ def write_mastr_xml_to_database(
                     xml_tablename=xml_tablename,
                     sql_tablename=sql_tablename,
                     if_exists="append",
+                    #schema=engine._execution_options["schema_translate_map"]["_none"],
                     engine=engine,
                 )
     print("Bulk download and data cleansing were successful.")
@@ -159,7 +163,7 @@ def preprocess_table_for_writing_to_database(
     try:
         df = pd.read_xml(data, encoding="UTF-16", compression="zip")
     except lxml.etree.XMLSyntaxError as err:
-        df = handle_xml_syntax_error(data, err)
+        df = handle_xml_syntax_error(data.decode("utf-16"), err)
 
     df = add_zero_as_first_character_for_too_short_string(df)
     df = change_column_names_to_orm_format(df, xml_tablename)
@@ -199,8 +203,10 @@ def add_table_to_database(
         if column.name in df.columns
     }
 
-    continueloop = True
-    while continueloop:
+    df = df[dtypes_for_writing_sql.keys()]
+
+    add_missing_columns_to_table(engine, xml_tablename, column_list=df.columns.tolist())
+    for _ in range(10000):
         try:
             with engine.connect() as con:
                 with con.begin():
@@ -211,20 +217,12 @@ def add_table_to_database(
                         if_exists=if_exists,
                         dtype=dtypes_for_writing_sql,
                     )
-                    continueloop = False
-        except sqlalchemy.exc.OperationalError as err:
-            add_missing_column_to_table(err, engine, xml_tablename)
-
-        except sqlalchemy.exc.ProgrammingError as err:
-            add_missing_column_to_table(err, engine, xml_tablename)
-
-        except sqlite3.OperationalError as err:
-            add_missing_column_to_table(err, engine, xml_tablename)
+                    break
 
         except sqlalchemy.exc.DataError as err:
             delete_wrong_xml_entry(err, df)
 
-        except sqlalchemy.exc.IntegrityError as err:
+        except sqlalchemy.exc.IntegrityError:
             # error resulting from Unique constraint failed
             df = write_single_entries_until_not_unique_comes_up(
                 df=df, xml_tablename=xml_tablename, engine=engine
@@ -303,18 +301,20 @@ def write_single_entries_until_not_unique_comes_up(
     return df
 
 
-def add_missing_column_to_table(
-    err: Error, engine: sqlalchemy.engine.Engine, xml_tablename: str
+def add_missing_columns_to_table(
+    engine: sqlalchemy.engine.Engine,
+    xml_tablename: str,
+    column_list: list,
 ) -> None:
     """
     Some files introduce new columns for existing tables.
-    If this happens, the error from writing entries into
-    non-existing columns is caught and the column is created.
+    If the pandas dataframe contains columns that do not
+    exist in the database, they are added to the database.
     Parameters
     ----------
-    err
     engine
     xml_tablename
+    df
 
     Returns
     -------
@@ -322,41 +322,41 @@ def add_missing_column_to_table(
     """
     log = setup_logger()
 
-    if engine.name == "postgresql":
-        missing_column = err.args[0].split("»")[1].split("«")[0]
-    elif engine.name == "sqlite":
-        missing_column = err.args[0].split()[-1]
-    else:
-        # only a guess, can fail with other db systems
-        missing_column = err.args[0].split()[-1]
-    table = tablename_mapping[xml_tablename]["__class__"].__table__
+    # get the columns name from the existing database
+    inspector = sqlalchemy.inspect(engine)
+    table_name = tablename_mapping[xml_tablename]["__class__"].__table__.name
+    columns = inspector.get_columns(table_name)
+    column_names_from_database = [column["name"] for column in columns]
 
-    alter_query = 'ALTER TABLE %s ADD "%s" VARCHAR NULL;' % (
-        table.name,
-        missing_column,
-    )
-    with engine.connect().execution_options(autocommit=True) as con:
-        with con.begin():
-            con.execute(text(alter_query).execution_options(autocommit=True))
-    log.info(
-        "From the downloaded xml files following new attribute was "
-        f"introduced: {table.name}.{missing_column}"
-    )
+    missing_columns = set(column_list) - set(column_names_from_database)
+
+    for column_name in missing_columns:
+        alter_query = 'ALTER TABLE %s ADD "%s" VARCHAR NULL;' % (
+            table_name,
+            column_name,
+        )
+        with engine.connect().execution_options(autocommit=True) as con:
+            with con.begin():
+                con.execute(text(alter_query).execution_options(autocommit=True))
+        log.info(
+            "From the downloaded xml files following new attribute was "
+            f"introduced: {table_name}.{column_name}"
+        )
 
 
-def delete_wrong_xml_entry(err: Error, df: pd.DataFrame) -> None:
+def delete_wrong_xml_entry(err: Error, df: pd.DataFrame) -> pd.DataFrame:
     delete_entry = str(err).split("«")[0].split("»")[1]
     print(f"The entry {delete_entry} was deleted due to its false data type.")
-    df = df.replace(delete_entry, np.nan)
+    return df.replace(delete_entry, np.nan)
 
 
-def handle_xml_syntax_error(data: bytes, err: Error) -> pd.DataFrame:
+def handle_xml_syntax_error(data: str, err: Error) -> pd.DataFrame:
     """Deletes entries that cause an xml syntax error and produces DataFrame.
 
     Parameters
     -----------
-    data : bytes
-        Unzipped xml data
+    data : str
+        Decoded xml file as one string
     err : ErrorMessage
         Error message that appeared when trying to use pd.read_xml on invalid xml file.
 
@@ -365,25 +365,31 @@ def handle_xml_syntax_error(data: bytes, err: Error) -> pd.DataFrame:
     df : pandas.DataFrame
         DataFrame which is read from the changed xml data.
     """
-    wrong_char_position = int(str(err).split()[-4])
-    decoded_data = data.decode("utf-16")
-    loop_condition = True
 
-    shift = 0
-    while loop_condition:
-        evaluated_string = decoded_data[wrong_char_position + shift]
-        if evaluated_string == ">":
-            start_char = wrong_char_position + shift + 1
-            break
-        else:
-            shift -= 1
-    loop_condition_2 = True
-    while loop_condition_2:
-        evaluated_string = decoded_data[start_char]
-        if evaluated_string == "<":
-            break
-        else:
-            decoded_data = decoded_data[:start_char] + decoded_data[start_char + 1 :]
-    df = pd.read_xml(decoded_data)
-    print("One invalid xml expression was deleted.")
-    return df
+    def find_nearest_brackets(xml_string: str, position: int) -> tuple[int, int]:
+        left_bracket_position = xml_string.rfind(">", 0, position)
+        right_bracket_position = xml_string.find("<", position)
+        return left_bracket_position, right_bracket_position
+
+    data = data.splitlines()
+
+    for _ in range(100):
+        # check for maximum of 100 syntax errors, otherwise return an error
+        wrong_char_row, wrong_char_column = err.position
+        row_with_error = data[wrong_char_row - 1]
+
+        left_bracket, right_bracket = find_nearest_brackets(
+            row_with_error, wrong_char_column
+        )
+        data[wrong_char_row - 1] = (
+            row_with_error[: left_bracket + 1] + row_with_error[right_bracket:]
+        )
+        try:
+            print("One invalid xml expression was deleted.")
+            df = pd.read_xml(StringIO("\n".join(data)))
+            return df
+        except lxml.etree.XMLSyntaxError as e:
+            err = e
+            continue
+
+    raise Error("An error occured when parsing the xml file. Maybe it is corrupted?")

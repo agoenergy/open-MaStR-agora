@@ -40,15 +40,6 @@ It always has the format `YYYY-MM-DD`, e.g. `2022-05-16`.
 ### 3. 🐙 Create a `Draft GitHub Release`
 * [Draft a new release](https://github.com/OpenEnergyPlatform/open-MaStR/releases/new)
 * Enter the release version number `v0.12.1` as title
-* Summarize key changes in the description
-    * `## [v0.12.1] Patch - Name - Date`
-    * `### Added`
-    * `### Changed`
-    * `### Removed`
-* Add a link to compare versions
-    * `**Compare versions:** [v0.12.0 - v0.12.1](https://github.com/OpenEnergyPlatform/open-MaStR/compare/v0.12.0...v0.12.1)`
-* Add a link to the `📝CHANGELOG.md`
-    * `Also see [**CHANGELOG.md**](https://github.com/OpenEnergyPlatform/open-MaStR/blob/production/CHANGELOG.md)`
 * Save draft
 
 ### 4. 🐙 Finish all planned Developments
@@ -59,14 +50,14 @@ It always has the format `YYYY-MM-DD`, e.g. `2022-05-16`.
 
 ### 5. 💠 Create a `release` branch
 * Checkout `develop` and branch with `git checkout -b release-v0.12.1`
-* Update version for test release with e.g. `bump2version patch`. To specify version numbers manually use `bump2version --current-version <current_version> --new-version <new_version> patch`
+* Update version for test release with `bump2version --current-version <current_version> --new-version <new_version> patch`
 * Commit version update with `git commit -am "version update v0.12.1a1"`
 * Push branch with `git push --set-upstream origin release-v0.12.1`
 
 ### 6. Check release on Test-PyPI 
 
 * Check if the release it correctly displayed on [Test-PyPI](https://test.pypi.org/project/open-mastr/#history)
-* With each push to the release branch or the branch `test-release` the package is released on [Test-PyPI](https://test.pypi.org/project/open-mastr/#history) by GitHub workflow (test-pypi-publish.yml).
+  * You can trigger the release manually within github actions using the `run workflow` button on branch `release-v0.12.1` on the workflow `Build and release on pypi tests`
   * Note: Pre-releases on Test-PyPI are only shown under `Release history` in the navigation bar.
   * Note: The branch status can only be released to a version on Test-PyPI once. Thus, for every branch status that you want to see on Test-PyPI increment the build version with `bump2version build` and push afterwards.
 * Once testing on Test-PyPI is done, change the release version to the final desired version with `bump2version release`
@@ -84,11 +75,11 @@ It always has the format `YYYY-MM-DD`, e.g. `2022-05-16`.
 ### 8. 🐙 Create a `Release Pull Request`
 * Use `📝PR_TEMPLATE_RELEASE` (❗ToDo❗)
 * Merge `release` into `production` branch
-* Assign two reviewers to check the release
+* Assign reviewers to check the release
 * Run all test
 * Execute the software locally
 * Wait for reviews and tests
-* Merge PR and delete `release` branch
+* Merge PR
 
 ### 9. 💠 Set the `Git Tag`
 * Checkout `production` branch and pull
@@ -103,6 +94,7 @@ It always has the format `YYYY-MM-DD`, e.g. `2022-05-16`.
 ### 10. 🐙 Publish `Release` on GitHub and PyPI
 * Navigate to your [releases](https://github.com/OpenEnergyPlatform/open-MaStR/releases/) on GitHub and open your draft release.
 * Summarize key changes in the description
+    * Use the `generate release notes` button provided by github (This only works after the release branch is merged on production)
 * Choose the correct git `tag`
 * Choose the `production` branch
 * Publish release
@@ -112,7 +104,7 @@ It always has the format `YYYY-MM-DD`, e.g. `2022-05-16`.
 ▶️ In the background the GitHub workflow (pypi-publish.yml) will publish the package 📦 on PyPI!
 
 ### 11. 🐙 Set up new development
-* Create a Pull request from `production` to `develop`
+* Create a Pull request from `release-*` to `develop`
 * Create a new **unreleased section** in the `📝CHANGELOG.md`
 ```
 ## [v0.XX.X] unreleased
@@ -120,11 +112,13 @@ It always has the format `YYYY-MM-DD`, e.g. `2022-05-16`.
 ### Changed
 ### Removed
 ```
+* Merge `release-*` to `develop` and delete `release-*` branch
 
 ▶️ Continue the developments 🛠
 
 ## Documentation on Read the Docs (RTD)
-ToDo
+* ReadTheDocs triggers a new built automatically after the release on github. To see
+  the build status, visit https://readthedocs.org/projects/open-mastr/builds/
 
 
 ## Sources:

@@ -9,68 +9,53 @@ API: Download latest entries using the SOAP-API.
 
 SPDX-License-Identifier: AGPL-3.0-or-later
 """
-
-from open_mastr import Mastr
-from sqlalchemy import create_engine, text
+import os
+import time
+import logging
+from logging.handlers import SMTPHandler
 from sshtunnel import SSHTunnelForwarder
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from open_mastr import Mastr
 import os
 
-## specify download parameter
 
-# bulk download
-bulk_date = "today"
-bulk_cleansing = True
-data_bulk = [
-    "biomass",
-    "combustion",
-    "gsgk",
-    "hydro",
-    "nuclear",
-    "solar",
-    "storage",
-    "wind",
-    "balancing_area",
-    "electricity_consumer",
-    "gas",
-    "grid",
-    "location",
-    "market",
-    "permit",
-]
+load_dotenv()
+EMAIL_FROM_USR = os.getenv("EMAIL_FROM_USR")
+EMAIL_FROM_PASS = os.getenv("EMAIL_FROM_PASS")
+EMAIL_TO = os.getenv("EMAIL_TO")
 
-# API download
-# for parameter explanation see: https://open-mastr.readthedocs.io/en/latest/getting_started.html#api-download
+smtp_handler = SMTPHandler(
+    mailhost=("mail.dotplex.com", 25),
+    secure=(),
+    credentials=(EMAIL_FROM_USR, EMAIL_FROM_PASS),
+    fromaddr=EMAIL_FROM_USR,
+    toaddrs=EMAIL_TO,
+    subject="system error - log",
+)
+smtp_handler.setLevel(logging.ERROR)
+mail_handler = logging.getLogger(__name__)
+mail_handler.addHandler(smtp_handler)
+mail_handler.setLevel(logging.ERROR)
 
-api_date = "latest"
-api_chunksize = 10
-api_limit = 10
-api_processes = None
 
-data_api = [
-    "biomass",
-    "combustion",
-    "gsgk",
-    "hydro",
-    "nuclear",
-    "solar",
-    "storage",
-    "wind",
-]
+def retry_function(func, max_retries=3, retry_delay=1):
+    retries = 0
+    while retries < max_retries:
+        try:
+            result = func()
+            return result  # If the function succeeds, return its result
+        except Exception as e:
+            print(f"Attempt {retries + 1} failed with error: {str(e)}")
+            time.sleep(retry_delay)  # Wait for a short period before retrying
+            retries += 1
 
-api_data_types = ["unit_data", "eeg_data", "kwk_data", "permit_data"]
-
-api_location_types = [
-    "location_elec_generation",
-    "location_elec_consumption",
-    "location_gas_generation",
-    "location_gas_consumption",
-]
+    print(f"Function failed after {max_retries} attempts")
+    raise Exception("Max retries exceeded")
 
 
 def mastr_temp_update():
     """Update the temporary MaStR version."""
-    load_dotenv()
 
     SSH_ADDRESS = os.getenv("SSH_HOST")
     SSH_PORT = int(os.getenv("SSH_PORT"))
@@ -98,17 +83,20 @@ def mastr_temp_update():
         f"postgresql://{USERNAME_POSTGRES}:{PASSWORD_POSTGRES}@{LOCAL_HOST}:"
         f"{LOCAL_PORT}/{POSTGRES_DB}",
         echo=True,
-        execution_options={"schema_translate_map": {None: FACT_SCHEMA}},
+        connect_args={"options": f"-c search_path={FACT_SCHEMA}"}
+        #execution_options={"schema_translate_map": {None: FACT_SCHEMA}},
     )
 
-    with engine.connect() as conn:
-        conn.execute(text(f"SET search_path TO {FACT_SCHEMA}"))
-
-    engine.connect()
     db = Mastr(engine=engine)
-    db.download(data=["solar", "wind", "hydro", "biomass"])
+    db.download(data=["solar", "wind", "hydro", "biomass", "permit"])
 
 
 if __name__ == "__main__":
     # update MaStR
-    mastr_temp_update()
+    try:
+        result = retry_function(mastr_temp_update)
+        print(f"Function succeeded with result: {result}")
+    except Exception as err:
+        mail_handler.exception(
+            f"After three retries MaStR couldn't be updatet with {err}."
+        )

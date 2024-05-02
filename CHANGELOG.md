@@ -6,14 +6,55 @@ For each version important additions, changes and removals are listed here.
 The format is inspired from [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and the versioning aims to respect [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+
+## [v0.14.3] Fix Pypi Release - 2024-04-24 
+### Added
+- Add new table `changed_dso_assignment` [#510](https://github.com/OpenEnergyPlatform/open-MaStR/pull/510)
+- Add deprecation warning for `MaStRMirror` and `MaStRDownload` [#492](https://github.com/OpenEnergyPlatform/open-MaStR/pull/492)
+### Changed
+- Change from `setup.py` to `pyproject.toml` based installation [#513](https://github.com/OpenEnergyPlatform/open-MaStR/pull/513)
+### Removed
+- Remove outdated and deprecated dependencies [#506](https://github.com/OpenEnergyPlatform/open-MaStR/pull/506)
+
+## [v0.14.2] Maintenance - 2024-04-10
+### Changed
+- Fix and add URLs of example projects in readme [#481](https://github.com/OpenEnergyPlatform/open-MaStR/pull/481)
+- No longer require web scraping for bulk download [#488](https://github.com/OpenEnergyPlatform/open-MaStR/pull/488)
+- Replace deprecated pandas map function [#491](https://github.com/OpenEnergyPlatform/open-MaStR/pull/491)
+- Fix the handling of corrupted xml syntax in the downloaded files [#494](https://github.com/OpenEnergyPlatform/open-MaStR/pull/494)
+- Implement relevant API WSDL Patchnotes V24.1.128 [#499](https://github.com/OpenEnergyPlatform/open-MaStR/pull/499)
+### Removed
+- Remove unused Docker File [#501](https://github.com/OpenEnergyPlatform/open-MaStR/pull/501)
+
+
+## [v0.14.1] Hotfix - 2024-01-17
+### Changed
+- Change data type of NetzbetreiberpruefungStatus to string [#483](https://github.com/OpenEnergyPlatform/open-MaStR/pull/483)
+
+## [v0.14.0] Shiny New Documentation Page - 2023-11-22
+### Added
+- User-defined output path for csv, xml, database [#402](https://github.com/OpenEnergyPlatform/open-MaStR/pull/402)
+- Add date=existing parameter to Mastr.download [#452](https://github.com/OpenEnergyPlatform/open-MaStR/pull/452)
+- Update documentation and release it on mkdocs [#460](https://github.com/OpenEnergyPlatform/open-MaStR/pull/460)
+- Replace values in ArtDerFlaecheIds with their entries from katalogwerte [#464](https://github.com/OpenEnergyPlatform/open-MaStR/pull/464)
+- Add a Mastr.translate method for english translation [##471](https://github.com/OpenEnergyPlatform/open-MaStR/pull/471)
+
+### Changed
+- Using sphinx version <7 to build documentation [#454](https://github.com/OpenEnergyPlatform/open-MaStR/pull/454)
+- Get missing column names in xml download in a robust way [#470](https://github.com/OpenEnergyPlatform/open-MaStR/pull/470)
+- Adapt column names to the API web service update [#472](https://github.com/OpenEnergyPlatform/open-MaStR/pull/472)
+
+### Removed
+- Delete `on push` for github workflow [#445](https://github.com/OpenEnergyPlatform/open-MaStR/pull/445)
+
 ## [v0.13.2] Hotfix - 2023-08-07
 ### Changed
 - Changed the name of the bulk tables for technology=gsgk [#456](https://github.com/OpenEnergyPlatform/open-MaStR/pull/456)
 
 ## [v0.13.1] Hotfix - 2023-04-11
-
 ### Added
 - Add new table and new columns to the data model [#440](https://github.com/OpenEnergyPlatform/open-MaStR/pull/440)
+
 ## [v0.13.0] Maintenance release - 2023-02-16
 ### Added
 - Add a `workflow_dispatch` to run CI pipelines from a button click [#389](https://github.com/OpenEnergyPlatform/open-MaStR/pull/389)

@@ -49,6 +49,7 @@ columns_replace_list = [
     "Nutzungsbereich",
     "Nebenausrichtung",
     "NebenausrichtungNeigungswinkel",
+    "ArtDerFlaecheIds",
     # einheitenstromspeicher
     "AcDcKoppelung",
     "Batterietechnologie",
@@ -75,6 +76,8 @@ columns_replace_list = [
     # anlagengasspeicher
     # anlagenkwk
     # bilanzierungsgebiete
+    # einheitenaenderungnetzbetreiberzuordnungen
+    "ArtDerAenderung",
     # einheitenbiomasse
     "Hauptbrennstoff",
     "Biomasseart",
