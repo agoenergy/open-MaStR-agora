@@ -38,6 +38,12 @@ mail_handler = logging.getLogger(__name__)
 mail_handler.addHandler(smtp_handler)
 mail_handler.setLevel(logging.ERROR)
 
+# optimize bulk downloads and use the recommended number of processes
+os.environ['USE_RECOMMENDED_NUMBER_OF_PROCESSES'] = "True"
+
+# set up your own number of processes for bulk download
+# os.environ['NUMBER_OF_PROCESSES'] = "your_number"
+
 
 def retry_function(func, max_retries=3, retry_delay=1):
     retries = 0
