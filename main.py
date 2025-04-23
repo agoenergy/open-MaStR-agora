@@ -23,14 +23,14 @@ from scripts.postprocessing import capacity_update
 load_dotenv()
 EMAIL_FROM_USR = os.getenv("EMAIL_FROM_USR")
 EMAIL_FROM_PASS = os.getenv("EMAIL_FROM_PASS")
-EMAIL_TO = os.getenv("EMAIL_TO")
+EMAIL_LIST_DPT = os.getenv("EMAIL_LIST_DPT")
 
 smtp_handler = SMTPHandler(
     mailhost=("mail.dotplex.com", 25),
     secure=(),
     credentials=(EMAIL_FROM_USR, EMAIL_FROM_PASS),
     fromaddr=EMAIL_FROM_USR,
-    toaddrs=EMAIL_TO,
+    toaddrs=EMAIL_LIST_DPT,
     subject="system error - log",
 )
 smtp_handler.setLevel(logging.ERROR)
@@ -94,12 +94,11 @@ def mastr_temp_update():
 if __name__ == "__main__":
     # update MaStR
     try:
-        start = time.time()
         result = retry_function(mastr_temp_update)
         print(f"Function succeeded with result: {result}")
-        capacity_update.update_capacities()
-        print(time.time()-start)
     except Exception as err:
         mail_handler.exception(
             f"After three retries MaStR couldn't be updatet with {err}."
         )
+    finally:
+        capacity_update.update_capacities()

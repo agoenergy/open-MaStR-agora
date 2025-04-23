@@ -3,7 +3,7 @@ INSERT INTO temp_mastr.{{gen_type}}_capa (date_id, capa)
 WITH RECURSIVE date_series AS (
     -- Extend the series to include "tomorrow"
     SELECT
-        generate_series('2018-06-01'::date, CURRENT_DATE + INTERVAL '1 day', '1 day'::interval)::date AS date_id
+        generate_series('2018-06-01'::date, CURRENT_DATE + INTERVAL '7 day', '1 day'::interval)::date AS date_id
 ),
 daily_start_grouped AS (
     SELECT
