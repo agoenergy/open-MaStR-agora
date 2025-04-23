@@ -45,6 +45,12 @@ def write_mastr_xml_to_database(
                 continue
 
             sql_table_name = extract_sql_table_name(xml_table_name)
+            if sql_table_name not in cleared_tables:
+                    print(f"Cleared {sql_table_name}")
+                    with engine.connect() as con:
+                        with con.begin():
+                            con.execute(text(f"TRUNCATE TABLE temp_mastr.{sql_table_name}"))
+                    cleared_tables.add(sql_table_name)
             threads_data.append(
                 (
                     file_name,
