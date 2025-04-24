@@ -12,7 +12,7 @@ from sqlalchemy import (
     JSON,
 )
 
-meta = MetaData()
+meta = MetaData(schema='temp_mastr')
 Base = declarative_base(metadata=meta)
 
 
@@ -94,6 +94,10 @@ class WindExtended(Extended, Base):
     AuflagenAbschaltungEiswurf = Column(Boolean)
     AuflagenAbschaltungSonstige = Column(Boolean)
     Nachtkennzeichen = Column(Boolean)
+    WindAnLandOderAufSee = Column(String)
+    TechnologieFlugwind = Column(String)
+    Flughoehe = Column(Float)
+    Flugradius = Column(Float)
 
 
 class SolarExtended(Extended, Base):
@@ -109,6 +113,10 @@ class SolarExtended(Extended, Base):
     EegMastrNummer = Column(String)
     Nutzungsbereich = Column(String)
     Leistungsbegrenzung = Column(String)
+    ArtDerSolaranlage = Column(String)
+    Zaehlernummer = Column(String)
+    InAnspruchGenommeneAckerflaeche = Column(Float)
+    SpeicherAmGleichenOrt = Column(String)
 
 
 class BiomassExtended(Extended, Base):
