@@ -19,8 +19,8 @@ from open_mastr.utils.helpers import data_to_include_tables
 from open_mastr.utils.orm_temp import tablename_mapping
 from open_mastr.xml_download.utils_cleansing_bulk import cleanse_bulk_data
 
+SCHEMA = 'temp_mastr'
 
-@db_exception_handler
 def write_mastr_xml_to_database(
     engine: sqlalchemy.engine.Engine,
     zipped_xml_file_path: str,
@@ -49,7 +49,7 @@ def write_mastr_xml_to_database(
                     print(f"Cleared {sql_table_name}")
                     with engine.connect() as con:
                         with con.begin():
-                            con.execute(text(f"TRUNCATE TABLE temp_mastr.{sql_table_name}"))
+                            con.execute(text(f"TRUNCATE TABLE {SCHEMA}.{sql_table_name}"))
                     cleared_tables.add(sql_table_name)
             threads_data.append(
                 (
@@ -128,8 +128,8 @@ def process_xml_file(
         with ZipFile(zipped_xml_file_path, "r") as f:
             print(f"Processing file '{file_name}'...")
             if is_first_file(file_name):
-                print(f"Creating table '{sql_table_name}'...")
                 create_database_table(engine, xml_table_name)
+                print(f"Creating table '{sql_table_name}' if not existant yet...")
             df = read_xml_file(f, file_name)
             df = process_table_before_insertion(
                 df,
@@ -247,8 +247,8 @@ def create_database_table(
     engine: sqlalchemy.engine.Engine, xml_table_name: str
 ) -> None:
     orm_class = tablename_mapping[xml_table_name]["__class__"]
-    orm_class.__table__.drop(engine, checkfirst=True)
-    orm_class.__table__.create(engine)
+    #orm_class.__table__.drop(engine, checkfirst=True)
+    orm_class.__table__.create(engine, checkfirst = True)
 
 
 def is_first_file(file_name: str) -> bool:
@@ -379,6 +379,7 @@ def add_table_to_non_sqlite_database(
                         index=False,
                         if_exists="append",
                         dtype=dtypes_for_writing_sql,
+                        schema=SCHEMA
                     )
                     break
 
@@ -488,7 +489,7 @@ def add_missing_columns_to_table(
     # get the columns name from the existing database
     inspector = sqlalchemy.inspect(engine)
     table_name = tablename_mapping[xml_table_name]["__class__"].__table__.name
-    columns = inspector.get_columns(table_name)
+    columns = inspector.get_columns(table_name, schema = SCHEMA)
     column_names_from_database = [column["name"] for column in columns]
 
     missing_columns = set(column_list) - set(column_names_from_database)
@@ -496,7 +497,7 @@ def add_missing_columns_to_table(
     for column_name in missing_columns:
         if not column_exists(engine, table_name, column_name):
             alter_query = 'ALTER TABLE %s ADD "%s" VARCHAR NULL;' % (
-                table_name,
+                SCHEMA + '.'+ table_name,
                 column_name,
             )
             try:
@@ -624,5 +625,5 @@ def add_table_to_sqlite_database(
 
 def column_exists(engine, table_name, column_name):
     inspector = inspect(engine)
-    columns = [col["name"] for col in inspector.get_columns(table_name)]
+    columns = [col["name"] for col in inspector.get_columns(table_name, schema = SCHEMA)]
     return column_name in columns
